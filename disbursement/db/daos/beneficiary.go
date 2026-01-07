@@ -2,6 +2,7 @@ package daos
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"loan-disbursement-service/db/schema"
 
@@ -42,11 +43,12 @@ func (b BeneficiaryDAO) CreateOrGet(
 	name, account, ifsc, bank string,
 ) (*schema.Beneficiary, error) {
 	beneficiary, err := b.Get(ctx, account, ifsc, bank)
-	if err != nil {
-		return nil, err
-	}
-	if beneficiary != nil {
+	if err == nil && beneficiary != nil {
 		return beneficiary, nil
+	}
+	// If Get failed with ErrRecordNotFound, create a new beneficiary
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, err
 	}
 	id := fmt.Sprintf("BEN%s", uuid.New().String()[:12])
 	beneficiary, err = b.Create(ctx, id, account, ifsc, bank)
