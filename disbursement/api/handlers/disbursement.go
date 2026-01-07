@@ -24,7 +24,7 @@ func NewDisbursementHandler(service *services.DisbursementService) *Disbursement
 func (d DisbursementHandler) Disburse(w http.ResponseWriter, r *http.Request) {
 	var req models.DisburseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		d.ErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -41,7 +41,7 @@ func (d DisbursementHandler) Fetch(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	result, err := d.service.Fetch(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		d.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -52,7 +52,7 @@ func (d DisbursementHandler) Retry(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 	result, err := d.service.Retry(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		d.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 

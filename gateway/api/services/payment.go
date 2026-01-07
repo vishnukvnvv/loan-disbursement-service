@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"mock-payment-gateway/config"
 	"mock-payment-gateway/failures"
 	"mock-payment-gateway/models"
@@ -79,14 +80,21 @@ func (p *PaymentService) validateBeneficiary(beneficiary models.Beneficiary) err
 }
 
 func (p *PaymentService) getPaymentMode(transactionID string) (types.PaymentMode, error) {
-	if strings.HasPrefix(transactionID, "UPI") {
-		return types.UPI, nil
+	if transactionID == "" {
+		return "", errors.New("transaction ID cannot be empty")
 	}
-	if strings.HasPrefix(transactionID, "UPI") {
+
+	switch {
+	case strings.HasPrefix(transactionID, "UPI"):
 		return types.UPI, nil
+	case strings.HasPrefix(transactionID, "IMPS"):
+		return types.IMPS, nil
+	case strings.HasPrefix(transactionID, "NEFT"):
+		return types.NEFT, nil
+	default:
+		return "", fmt.Errorf(
+			"invalid transaction ID format: expected prefix UPI, IMPS, or NEFT, got %q",
+			transactionID,
+		)
 	}
-	if strings.HasPrefix(transactionID, "UPI") {
-		return types.UPI, nil
-	}
-	return types.UPI, errors.New("Invalid Transaction ID")
 }

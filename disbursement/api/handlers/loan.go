@@ -31,7 +31,7 @@ func (l LoanHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	loan, err := l.service.Create(r.Context(), req.Amount)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		l.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -49,10 +49,10 @@ func (l LoanHandler) Update(w http.ResponseWriter, r *http.Request) {
 	loan, err := l.service.Update(r.Context(), loanId, map[string]any{"amount": req.Amount})
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			http.Error(w, "loan not found", http.StatusNotFound)
+			l.ErrorResponse(w, http.StatusNotFound, "loan not found")
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		l.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -64,10 +64,10 @@ func (l LoanHandler) Get(w http.ResponseWriter, r *http.Request) {
 	loan, err := l.service.Get(r.Context(), loanId)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
-			http.Error(w, "loan not found", http.StatusNotFound)
+			l.ErrorResponse(w, http.StatusNotFound, "loan not found")
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		l.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -77,7 +77,7 @@ func (l LoanHandler) Get(w http.ResponseWriter, r *http.Request) {
 func (l LoanHandler) List(w http.ResponseWriter, r *http.Request) {
 	loans, err := l.service.List(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		l.ErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
