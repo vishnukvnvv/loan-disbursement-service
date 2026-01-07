@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+invalid_ifsc:
+  - IFSC1
+  - IFSC2
+  - IFSC3
+
+invalid_account_number:
+  - ACCOUNT_NUMBER1
+  - ACCOUNT_NUMBER2
+  - ACCOUNT_NUMBER3
+
+beneficiary_bank_down:
+  - BANK1
+  - BANK2
+  - BANK3
+
+payment_modes:
+  upi:
+    limit: 100000
+    timeout: 3
+    failure_rate: 0.09
+  neft:
+    timeout: 6
+    failure_rate: 0.005
+  imps:
+    limit: 500000
+    timeout: 4.5
+    failure_rate: 0.06
