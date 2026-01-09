@@ -14,13 +14,19 @@ const (
 	ChannelSwitchAt = 2
 )
 
-type RetryPolicy struct{}
-
-func NewRetryPolicy() *RetryPolicy {
-	return &RetryPolicy{}
+type RetryPolicy interface {
+	CalculateBackoff(retryCount int) time.Duration
+	NextRetryTime(retryCount int) time.Time
+	IsRetryEligible(lastAttemptTime time.Time, retryCount int) bool
 }
 
-func (rp RetryPolicy) CalculateBackoff(retryCount int) time.Duration {
+type RetryPolicyImpl struct{}
+
+func NewRetryPolicy() RetryPolicy {
+	return &RetryPolicyImpl{}
+}
+
+func (rp *RetryPolicyImpl) CalculateBackoff(retryCount int) time.Duration {
 	if retryCount <= 0 {
 		return InitialDelay
 	}
@@ -37,12 +43,12 @@ func (rp RetryPolicy) CalculateBackoff(retryCount int) time.Duration {
 	return finalDelay
 }
 
-func (rp RetryPolicy) NextRetryTime(retryCount int) time.Time {
+func (rp *RetryPolicyImpl) NextRetryTime(retryCount int) time.Time {
 	backoff := rp.CalculateBackoff(retryCount)
 	return time.Now().Add(backoff)
 }
 
-func (rp RetryPolicy) IsRetryEligible(lastAttemptTime time.Time, retryCount int) bool {
+func (rp *RetryPolicyImpl) IsRetryEligible(lastAttemptTime time.Time, retryCount int) bool {
 	nextRetryTime := lastAttemptTime.Add(rp.CalculateBackoff(retryCount))
 	return time.Now().After(nextRetryTime)
 }

@@ -6,20 +6,30 @@ import (
 	"loan-disbursement-service/db/daos"
 	"loan-disbursement-service/db/schema"
 	"loan-disbursement-service/models"
+	"loan-disbursement-service/utils"
 	"time"
-
-	"github.com/google/uuid"
 )
 
-type ReconciliationService struct {
-	transactionDAO *daos.TransactionDAO
+type ReconciliationService interface {
+	Reconcile(
+		ctx context.Context,
+		req models.ReconciliationRequest,
+	) (*models.ReconciliationResponse, error)
 }
 
-func NewReconciliationService(transactionDAO *daos.TransactionDAO) *ReconciliationService {
-	return &ReconciliationService{transactionDAO: transactionDAO}
+type ReconciliationServiceImpl struct {
+	idGenerator utils.IdGenerator
+	transaction daos.TransactionRepository
 }
 
-func (s *ReconciliationService) Reconcile(
+func NewReconciliationService(
+	idGenerator utils.IdGenerator,
+	transaction daos.TransactionRepository,
+) ReconciliationService {
+	return &ReconciliationServiceImpl{idGenerator: idGenerator, transaction: transaction}
+}
+
+func (s *ReconciliationServiceImpl) Reconcile(
 	ctx context.Context,
 	req models.ReconciliationRequest,
 ) (*models.ReconciliationResponse, error) {
@@ -27,10 +37,10 @@ func (s *ReconciliationService) Reconcile(
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse statement date: %w", err)
 	}
-	ourTransactions, err := s.transactionDAO.ListByDate(
+	ourTransactions, err := s.transaction.ListByDate(
 		ctx,
 		date,
-		[]string{string(models.TransactionStatusSuccess)},
+		[]models.TransactionStatus{models.TransactionStatusSuccess},
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get successful transactions: %w", err)
@@ -59,7 +69,8 @@ func (s *ReconciliationService) Reconcile(
 				ExpectedAmount: ourTxn.Amount,
 				ActualAmount:   0,
 				Message: fmt.Sprintf(
-					"Transaction marked as SUCCESS in our records but not found in bank statement",
+					"Transaction marked as %s in our records but not found in bank statement",
+					models.TransactionStatusSuccess,
 				),
 			})
 			continue
@@ -80,14 +91,16 @@ func (s *ReconciliationService) Reconcile(
 			continue
 		}
 
-		if bankTxn.Status != "SUCCESS" && bankTxn.Status != "COMPLETED" {
+		if bankTxn.Status != models.TransactionStatusSuccess &&
+			bankTxn.Status != models.TransactionStatusCompleted {
 			discrepancies = append(discrepancies, models.Discrepancy{
 				Type:           "status_mismatch",
 				ReferenceID:    refID,
 				ExpectedAmount: ourTxn.Amount,
 				ActualAmount:   bankTxn.Amount,
 				Message: fmt.Sprintf(
-					"Status mismatch: we have SUCCESS, bank has %s",
+					"Status mismatch: we have %s, bank has %s",
+					models.TransactionStatusSuccess,
 					bankTxn.Status,
 				),
 			})
@@ -97,22 +110,25 @@ func (s *ReconciliationService) Reconcile(
 		matchedCount++
 	}
 
-	// Check for ghost transactions (in bank statement but not in our records)
 	for refID, bankTxn := range bankTxnMap {
 		if _, exists := ourTxnMap[refID]; !exists {
+			if bankTxn.Status != models.TransactionStatusSuccess &&
+				bankTxn.Status != models.TransactionStatusCompleted {
+				continue
+			}
 			discrepancies = append(discrepancies, models.Discrepancy{
 				Type:           "ghost",
 				ReferenceID:    refID,
 				ExpectedAmount: 0,
 				ActualAmount:   bankTxn.Amount,
 				Message: fmt.Sprintf(
-					"Transaction in bank statement but not in our records - potential fraud or data loss",
+					"Transaction in bank statement but not in our records - potential fraud or data loss: %s",
+					bankTxn.Status,
 				),
 			})
 		}
 	}
 
-	// Calculate totals
 	totalExpected := 0.0
 	for _, txn := range ourTransactions {
 		totalExpected += txn.Amount
@@ -120,13 +136,14 @@ func (s *ReconciliationService) Reconcile(
 
 	totalActual := 0.0
 	for _, txn := range req.Transactions {
-		if txn.Status == "SUCCESS" || txn.Status == "COMPLETED" {
+		if txn.Status == models.TransactionStatusSuccess ||
+			txn.Status == models.TransactionStatusCompleted {
 			totalActual += txn.Amount
 		}
 	}
 
 	response := &models.ReconciliationResponse{
-		ReconciliationID: uuid.New().String(),
+		ReconciliationID: s.idGenerator.GenerateReconciliationId(),
 		StatementDate:    req.StatementDate,
 		TotalExpected:    totalExpected,
 		TotalActual:      totalActual,

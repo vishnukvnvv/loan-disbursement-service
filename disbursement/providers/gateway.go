@@ -9,6 +9,8 @@ import (
 
 	httpclient "loan-disbursement-service/http"
 	"loan-disbursement-service/models"
+
+	"github.com/rs/zerolog/log"
 )
 
 type GatewayProvider struct {
@@ -29,14 +31,15 @@ func (g GatewayProvider) Transfer(
 ) (models.PaymentResponse, error) {
 	resp, err := g.client.POST(
 		ctx,
-		fmt.Sprintf("%s/api/v1/payment/init", g.baseURL),
+		fmt.Sprintf("%s/api/v1/payment", g.baseURL),
 		req,
 		map[string]string{
 			"Content-Type": "application/json",
 		},
 	)
 	if err != nil {
-		return models.PaymentResponse{}, errors.New("gateway error: " + err.Error())
+		log.Error().Err(err).Msg("gateway error")
+		return models.PaymentResponse{}, models.NETWORK_ERROR
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -52,19 +55,6 @@ func (g GatewayProvider) Transfer(
 		)
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var errBody map[string]any
-		_ = json.NewDecoder(resp.Body).Decode(&errBody)
-		if errorMessage, ok := errBody["error"].(string); ok {
-			return models.PaymentResponse{}, errors.New(errorMessage)
-		}
-		return models.PaymentResponse{}, fmt.Errorf(
-			"gateway error: status=%d body=%v",
-			resp.StatusCode,
-			errBody,
-		)
-	}
 
 	var result models.PaymentResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -76,24 +66,25 @@ func (g GatewayProvider) Transfer(
 
 func (g GatewayProvider) Fetch(
 	ctx context.Context,
-	transactionId string,
+	channel models.PaymentChannel,
+	transactionID string,
 ) (models.PaymentResponse, error) {
-	if transactionId == "" {
-		return models.PaymentResponse{}, errors.New("transactionId is required")
+	if transactionID == "" {
+		return models.PaymentResponse{}, models.TRANSACTION_ID_REQUIRED
 	}
 
 	resp, err := g.client.GET(
-		context.Background(),
-		fmt.Sprintf("%s/api/v1/payment/status/%s", g.baseURL, transactionId),
+		ctx,
+		fmt.Sprintf("%s/api/v1/payment/%s/txn/%s", g.baseURL, channel, transactionID),
 		nil,
 	)
 	if err != nil {
-		return models.PaymentResponse{}, err
+		return models.PaymentResponse{}, models.NETWORK_ERROR
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return models.PaymentResponse{}, fmt.Errorf("transaction not found")
+		return models.PaymentResponse{}, models.TRANSACTION_NOT_FOUND
 	}
 	if resp.StatusCode != http.StatusOK {
 		var errBody map[string]any
@@ -101,11 +92,10 @@ func (g GatewayProvider) Fetch(
 		if errorMessage, ok := errBody["error"].(string); ok {
 			return models.PaymentResponse{}, errors.New(errorMessage)
 		}
-		return models.PaymentResponse{}, fmt.Errorf(
-			"gateway error: status=%d body=%v",
-			resp.StatusCode,
-			errBody,
-		)
+		log.Error().Int("status_code", resp.StatusCode).
+			RawJSON("body", []byte(fmt.Sprintf("%v", errBody))).
+			Msg("gateway error")
+		return models.PaymentResponse{}, models.UNKNOWN_ERROR
 	}
 
 	var result models.PaymentResponse
@@ -114,4 +104,30 @@ func (g GatewayProvider) Fetch(
 	}
 
 	return result, nil
+}
+
+func (g GatewayProvider) IsActive(
+	ctx context.Context,
+	channel models.PaymentChannel,
+) (bool, error) {
+	resp, err := g.client.GET(
+		ctx,
+		fmt.Sprintf("%s/api/v1/channel/%s/status", g.baseURL, channel),
+		nil,
+	)
+	if err != nil {
+		return false, models.NETWORK_ERROR
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return false, models.UNKNOWN_ERROR
+	}
+
+	var result models.PaymentChannelResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return false, err
+	}
+
+	return result.Active, nil
 }

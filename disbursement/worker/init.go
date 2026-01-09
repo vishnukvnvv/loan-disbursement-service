@@ -10,49 +10,92 @@ import (
 )
 
 type Worker struct {
-	disbursementDAO *daos.DisbursementDAO
-	paymentService  *services.PaymentService
-	pollInterval    time.Duration
-	batchSize       int
-	stopChan        chan struct{}
+	disbursement      daos.DisbursementRepository
+	paymentService    services.PaymentService
+	neftBatchSize     int
+	retryBatchSize    int
+	neftPollInterval  time.Duration
+	retryPollInterval time.Duration
+	paymentChan       chan string
+	stopChan          chan struct{}
 }
 
 func NewWorker(
-	disbursementDAO *daos.DisbursementDAO,
-	paymentService *services.PaymentService,
+	disbursement daos.DisbursementRepository,
+	paymentService services.PaymentService,
 ) *Worker {
 	return &Worker{
-		disbursementDAO: disbursementDAO,
-		paymentService:  paymentService,
-		pollInterval:    5 * time.Second,
-		batchSize:       10,
-		stopChan:        make(chan struct{}),
+		neftPollInterval:  30 * time.Second,
+		retryPollInterval: 5 * time.Second,
+		paymentChan:       make(chan string),
+		stopChan:          make(chan struct{}),
+		disbursement:      disbursement,
+		paymentService:    paymentService,
 	}
 }
 
-func (w Worker) Start(ctx context.Context) {
-	log.Info().Msg("Starting disbursement worker")
+func (w Worker) StartPaymentDisbursement(ctx context.Context) {
+	log.Ctx(ctx).Info().Msg("Starting payment disbursement worker")
+	for {
+		select {
+		case <-ctx.Done():
+			log.Ctx(ctx).Info().Msg("Worker stopped by context")
+			close(w.stopChan)
+			return
+		case <-w.stopChan:
+			log.Ctx(ctx).Info().Msg("Worker stopped by signal")
+			return
+		case disbursementId := <-w.paymentChan:
+			log.Ctx(ctx).Info().Msgf("Processing payment for disbursement: %s", disbursementId)
+			w.ProcessPaymentBatch(ctx, disbursementId)
+		}
+	}
+}
 
-	ticker := time.NewTicker(w.pollInterval)
+func (w Worker) StartRetryDisbursement(ctx context.Context) {
+	log.Ctx(ctx).Info().Msg("Starting retry disbursement worker")
+	ticker := time.NewTicker(w.retryPollInterval)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
-			log.Info().Msg("Worker stopped by context")
+			log.Ctx(ctx).Info().Msg("Worker stopped by context")
 			close(w.stopChan)
 			return
 		case <-w.stopChan:
-			log.Info().Msg("Worker stopped by signal")
+			log.Ctx(ctx).Info().Msg("Worker stopped by signal")
 			return
 		case <-ticker.C:
-			log.Info().Msg("Processing batch")
-			w.processBatch(ctx)
+			log.Ctx(ctx).Info().Msg("Processing retry disbursement")
+			w.ProcessRetryBatch(ctx)
+		}
+	}
+}
+
+func (w Worker) StartNEFTDisbursement(ctx context.Context) {
+	log.Ctx(ctx).Info().Msg("Starting neft disbursement worker")
+
+	ticker := time.NewTicker(w.neftPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Ctx(ctx).Info().Msg("Worker stopped by context")
+			close(w.stopChan)
+			return
+		case <-w.stopChan:
+			log.Ctx(ctx).Info().Msg("Worker stopped by signal")
+			return
+		case <-ticker.C:
+			log.Ctx(ctx).Info().Msg("Processing neft disbursement")
+			w.ProcessNEFTBatch(ctx)
 		}
 	}
 }
 
 func (w Worker) Stop(ctx context.Context) {
 	close(w.stopChan)
-	log.Info().Msg("Stopping disbursement worker")
+	log.Ctx(ctx).Info().Msg("Stopping disbursement worker")
 }

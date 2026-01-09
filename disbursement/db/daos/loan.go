@@ -7,21 +7,27 @@ import (
 	"gorm.io/gorm"
 )
 
-type LoanDAO struct {
-	db *gorm.DB
+type LoanRepository interface {
+	Create(ctx context.Context, loanId string, amount float64) (*schema.Loan, error)
+	Update(ctx context.Context, loanId string, data map[string]any) (*schema.Loan, error)
+	List(ctx context.Context) ([]schema.Loan, error)
+	Get(ctx context.Context, loanId string) (*schema.Loan, error)
 }
 
-func NewLoanDAO(db *gorm.DB) *LoanDAO {
+func NewLoanRepository(db *gorm.DB) LoanRepository {
 	return &LoanDAO{
 		db: db,
 	}
 }
 
+type LoanDAO struct {
+	db *gorm.DB
+}
+
 func (l LoanDAO) Create(ctx context.Context, loanId string, amount float64) (*schema.Loan, error) {
 	loan := &schema.Loan{
-		Id:           loanId,
-		Amount:       amount,
-		Disbursement: 0,
+		Id:     loanId,
+		Amount: amount,
 	}
 
 	if err := l.db.WithContext(ctx).Model(&schema.Loan{}).Create(loan).Error; err != nil {

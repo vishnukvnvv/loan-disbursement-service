@@ -8,7 +8,15 @@ import (
 
 type PaymentProvider interface {
 	Transfer(ctx context.Context, req models.PaymentRequest) (models.PaymentResponse, error)
-	Fetch(ctx context.Context, transactionId string) (models.PaymentResponse, error)
+	Fetch(
+		ctx context.Context,
+		channel models.PaymentChannel,
+		transactionId string,
+	) (models.PaymentResponse, error)
+	IsActive(
+		ctx context.Context,
+		channel models.PaymentChannel,
+	) (bool, error)
 }
 
 func NewPaymentProvider(baseURL string, client httpclient.HTTPClient) (PaymentProvider, error) {

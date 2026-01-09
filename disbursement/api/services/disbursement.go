@@ -6,39 +6,48 @@ import (
 	"fmt"
 	"loan-disbursement-service/db/daos"
 	"loan-disbursement-service/models"
+	"loan-disbursement-service/utils"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
-type DisbursementService struct {
-	loanDAO         *daos.LoanDAO
-	disbursementDAO *daos.DisbursementDAO
-	transactionDAO  *daos.TransactionDAO
-	beneficiaryDAO  *daos.BeneficiaryDAO
+type DisbursementService interface {
+	Disburse(ctx context.Context, req *models.DisburseRequest) (*models.DisbursementResponse, error)
+	Fetch(ctx context.Context, disbursementId string) (any, error)
+	Retry(ctx context.Context, disbursementId string) (any, error)
+}
+
+type DisbursementServiceImpl struct {
+	idGenerator  utils.IdGenerator
+	loan         daos.LoanRepository
+	disbursement daos.DisbursementRepository
+	transaction  daos.TransactionRepository
+	beneficiary  daos.BeneficiaryRepository
 }
 
 func NewDisbursementService(
-	loanDAO *daos.LoanDAO,
-	disbursementDAO *daos.DisbursementDAO,
-	transactionDAO *daos.TransactionDAO,
-	beneficiaryDAO *daos.BeneficiaryDAO,
-) *DisbursementService {
-	return &DisbursementService{
-		loanDAO:         loanDAO,
-		disbursementDAO: disbursementDAO,
-		transactionDAO:  transactionDAO,
-		beneficiaryDAO:  beneficiaryDAO,
+	idGenerator utils.IdGenerator,
+	loan daos.LoanRepository,
+	disbursement daos.DisbursementRepository,
+	transaction daos.TransactionRepository,
+	beneficiary daos.BeneficiaryRepository,
+) DisbursementService {
+	return &DisbursementServiceImpl{
+		idGenerator:  idGenerator,
+		loan:         loan,
+		disbursement: disbursement,
+		transaction:  transaction,
+		beneficiary:  beneficiary,
 	}
 }
 
-func (d *DisbursementService) Disburse(
+func (d *DisbursementServiceImpl) Disburse(
 	ctx context.Context,
 	req *models.DisburseRequest,
 ) (*models.DisbursementResponse, error) {
-	existing, err := d.disbursementDAO.Get(ctx, req.LoanId)
+	existing, err := d.disbursement.Get(ctx, req.LoanId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Error().Err(err).Str("loan_id", req.LoanId).Msg("failed to check existing disbursement")
 		return nil, fmt.Errorf("failed to check existing disbursement: %w", err)
@@ -52,7 +61,7 @@ func (d *DisbursementService) Disburse(
 		}, nil
 	}
 
-	loan, err := d.loanDAO.Get(ctx, req.LoanId)
+	loan, err := d.loan.Get(ctx, req.LoanId)
 	if err != nil {
 		log.Error().Err(err).Str("loan_id", req.LoanId).Msg("failed to get loan")
 		return nil, errors.New("invalid loan id")
@@ -63,8 +72,10 @@ func (d *DisbursementService) Disburse(
 	}
 
 	if loan.BeneficiaryId == nil {
-		beneficiary, err := d.beneficiaryDAO.CreateOrGet(
+		beneficiaryId := d.idGenerator.GenerateBeneficiaryId()
+		beneficiary, err := d.beneficiary.CreateOrGet(
 			ctx,
+			beneficiaryId,
 			req.BeneficiaryName,
 			req.AccountNumber,
 			req.IFSCCode,
@@ -74,7 +85,7 @@ func (d *DisbursementService) Disburse(
 			return nil, fmt.Errorf("failed to create or get beneficiary: %w", err)
 		}
 		loan.BeneficiaryId = &beneficiary.Id
-		_, err = d.loanDAO.Update(ctx, loan.Id, map[string]any{
+		_, err = d.loan.Update(ctx, loan.Id, map[string]any{
 			"beneficiary_id": beneficiary.Id,
 		})
 		if err != nil {
@@ -82,12 +93,14 @@ func (d *DisbursementService) Disburse(
 		}
 	}
 
-	disbursementId := fmt.Sprintf("DIS%s", uuid.New().String()[:12])
-	_, err = d.disbursementDAO.Create(
+	disbursementId := d.idGenerator.GenerateDisbursementId()
+	channel := d.selectChannel(req.Amount)
+	_, err = d.disbursement.Create(
 		ctx,
 		disbursementId,
 		loan.Id,
-		string(models.DisbursementStatusInitiated),
+		channel,
+		models.DisbursementStatusInitiated,
 		req.Amount,
 	)
 	if err != nil {
@@ -96,18 +109,18 @@ func (d *DisbursementService) Disburse(
 
 	return &models.DisbursementResponse{
 		DisbursementId: disbursementId,
-		Status:         string(models.DisbursementStatusInitiated),
+		Status:         models.DisbursementStatusInitiated,
 		Message:        "Disbursement created",
 	}, nil
 }
 
-func (d *DisbursementService) Fetch(ctx context.Context, disbursementId string) (any, error) {
-	disbursement, err := d.disbursementDAO.Get(ctx, disbursementId)
+func (d *DisbursementServiceImpl) Fetch(ctx context.Context, disbursementId string) (any, error) {
+	disbursement, err := d.disbursement.Get(ctx, disbursementId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch disbursement: %w", err)
 	}
 
-	transactions, err := d.transactionDAO.ListByDisbursement(ctx, disbursementId)
+	transactions, err := d.transaction.ListByDisbursement(ctx, disbursementId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch transactions: %w", err)
 	}
@@ -123,7 +136,7 @@ func (d *DisbursementService) Fetch(ctx context.Context, disbursementId string) 
 				txs[i] = models.TransactionResponse{
 					TransactionId: transaction.Id,
 					Status:        transaction.Status,
-					Mode:          transaction.Mode,
+					Channel:       transaction.Channel,
 					Message:       transaction.Message,
 					CreatedAt:     transaction.CreatedAt,
 					UpdatedAt:     transaction.UpdatedAt,
@@ -136,21 +149,21 @@ func (d *DisbursementService) Fetch(ctx context.Context, disbursementId string) 
 	}, nil
 }
 
-func (d *DisbursementService) Retry(ctx context.Context, disbursementId string) (any, error) {
-	disbursement, err := d.disbursementDAO.Get(ctx, disbursementId)
+func (d *DisbursementServiceImpl) Retry(ctx context.Context, disbursementId string) (any, error) {
+	disbursement, err := d.disbursement.Get(ctx, disbursementId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get disbursement: %w", err)
 	}
 
-	if disbursement.Status == string(models.DisbursementStatusProcessing) {
+	if disbursement.Status == models.DisbursementStatusProcessing {
 		return nil, fmt.Errorf("disbursement is in-progress")
 	}
 
-	if disbursement.Status == string(models.DisbursementStatusSuccess) {
+	if disbursement.Status == models.DisbursementStatusSuccess {
 		return nil, fmt.Errorf("disbursement is completed")
 	}
 
-	err = d.disbursementDAO.Update(ctx, disbursementId, map[string]any{
+	err = d.disbursement.Update(ctx, disbursementId, map[string]any{
 		"status":     string(models.DisbursementStatusInitiated),
 		"last_error": nil,
 		"updated_at": time.Now(),
@@ -161,7 +174,19 @@ func (d *DisbursementService) Retry(ctx context.Context, disbursementId string) 
 
 	return &models.DisbursementResponse{
 		DisbursementId: disbursementId,
-		Status:         string(models.DisbursementStatusInitiated),
+		Status:         models.DisbursementStatusInitiated,
 		Message:        "Disbursement retried",
 	}, nil
+}
+
+func (d *DisbursementServiceImpl) selectChannel(
+	amount float64,
+) models.PaymentChannel {
+	if amount <= 100000 {
+		return models.PaymentChannelUPI
+	}
+	if amount <= 500000 {
+		return models.PaymentChannelIMPS
+	}
+	return models.PaymentChannelNEFT
 }

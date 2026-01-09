@@ -3,58 +3,70 @@ package services
 import (
 	"loan-disbursement-service/db"
 	"loan-disbursement-service/providers"
+	"loan-disbursement-service/utils"
 )
 
 type ServiceFactory struct {
-	database            *db.Database
-	paymentProvider     providers.PaymentProvider
-	paymentService      *PaymentService
-	disbursementService *DisbursementService
-	loanService         *LoanService
+	database       *db.Database
+	paymentService PaymentService
+	disbursement   DisbursementService
+	loanService    LoanService
+	retryPolicy    RetryPolicy
+	reconciliation ReconciliationService
 }
 
 func New(
 	database *db.Database,
+	idGenerator utils.IdGenerator,
 	paymentProvider providers.PaymentProvider,
+	notificationURL string,
 ) *ServiceFactory {
+	retryPolicy := NewRetryPolicy()
 	return &ServiceFactory{
-		database:            database,
-		paymentProvider:     paymentProvider,
-		paymentService:      nil,
-		disbursementService: nil,
-		loanService:         nil,
+		database:    database,
+		retryPolicy: retryPolicy,
+		disbursement: NewDisbursementService(
+			idGenerator,
+			database.GetLoanRepository(),
+			database.GetDisbursementRepository(),
+			database.GetTransactionRepository(),
+			database.GetBeneficiaryRepository(),
+		),
+		loanService: NewLoanService(database.GetLoanRepository(), idGenerator),
+		paymentService: NewPaymentService(
+			database,
+			database.GetDisbursementRepository(),
+			database.GetTransactionRepository(),
+			database.GetLoanRepository(),
+			database.GetBeneficiaryRepository(),
+			retryPolicy,
+			paymentProvider,
+			idGenerator,
+			notificationURL,
+		),
+		reconciliation: NewReconciliationService(
+			idGenerator,
+			database.GetTransactionRepository(),
+		),
 	}
 }
 
-func (f *ServiceFactory) GetPaymentService() *PaymentService {
-	if f.paymentService == nil {
-		f.paymentService = NewPaymentService(
-			f.database.GetLoanDAO(),
-			NewRetryPolicy(),
-			f.database.GetBeneficiaryDAO(),
-			f.database.GetDisbursementDAO(),
-			f.database.GetTransactionDAO(),
-			f.paymentProvider,
-		)
-	}
+func (f *ServiceFactory) GetDisbursementService() DisbursementService {
+	return f.disbursement
+}
+
+func (f *ServiceFactory) GetLoanService() LoanService {
+	return f.loanService
+}
+
+func (f *ServiceFactory) GetPaymentService() PaymentService {
 	return f.paymentService
 }
 
-func (f *ServiceFactory) GetDisbursementService() *DisbursementService {
-	if f.disbursementService == nil {
-		f.disbursementService = NewDisbursementService(
-			f.database.GetLoanDAO(),
-			f.database.GetDisbursementDAO(),
-			f.database.GetTransactionDAO(),
-			f.database.GetBeneficiaryDAO(),
-		)
-	}
-	return f.disbursementService
+func (f *ServiceFactory) GetRetryPolicy() RetryPolicy {
+	return f.retryPolicy
 }
 
-func (f *ServiceFactory) GetLoanService() *LoanService {
-	if f.loanService == nil {
-		f.loanService = NewLoanService(f.database.GetLoanDAO())
-	}
-	return f.loanService
+func (f *ServiceFactory) GetReconciliationService() ReconciliationService {
+	return f.reconciliation
 }

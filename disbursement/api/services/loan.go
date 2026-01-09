@@ -2,45 +2,51 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"loan-disbursement-service/db/daos"
 	"loan-disbursement-service/db/schema"
 	"loan-disbursement-service/models"
-
-	"github.com/google/uuid"
+	"loan-disbursement-service/utils"
 )
 
-type LoanService struct {
-	loanDAO *daos.LoanDAO
+type LoanService interface {
+	Create(ctx context.Context, amount float64) (*models.Loan, error)
+	Update(ctx context.Context, loanId string, fields map[string]any) (*models.Loan, error)
+	List(ctx context.Context) ([]models.Loan, error)
+	Get(ctx context.Context, loanId string) (*models.Loan, error)
 }
 
-func NewLoanService(loanDAO *daos.LoanDAO) *LoanService {
-	return &LoanService{loanDAO: loanDAO}
+type LoanServiceImpl struct {
+	loan        daos.LoanRepository
+	idGenerator utils.IdGenerator
 }
 
-func (s *LoanService) Create(ctx context.Context, amount float64) (*models.Loan, error) {
-	loanId := fmt.Sprintf("LOAN%s", uuid.New().String()[:12])
-	loan, err := s.loanDAO.Create(ctx, loanId, amount)
+func NewLoanService(loan daos.LoanRepository, idGenerator utils.IdGenerator) LoanService {
+	return &LoanServiceImpl{loan: loan, idGenerator: idGenerator}
+}
+
+func (s LoanServiceImpl) Create(ctx context.Context, amount float64) (*models.Loan, error) {
+	loanId := s.idGenerator.GenerateLoanId()
+	loan, err := s.loan.Create(ctx, loanId, amount)
 	if err != nil {
 		return nil, err
 	}
 	return s.toModel(loan), nil
 }
 
-func (s *LoanService) Update(
+func (s *LoanServiceImpl) Update(
 	ctx context.Context,
 	loanId string,
 	fields map[string]any,
 ) (*models.Loan, error) {
-	loan, err := s.loanDAO.Update(ctx, loanId, fields)
+	loan, err := s.loan.Update(ctx, loanId, fields)
 	if err != nil {
 		return nil, err
 	}
 	return s.toModel(loan), nil
 }
 
-func (s *LoanService) List(ctx context.Context) ([]models.Loan, error) {
-	loans, err := s.loanDAO.List(ctx)
+func (s *LoanServiceImpl) List(ctx context.Context) ([]models.Loan, error) {
+	loans, err := s.loan.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -54,22 +60,21 @@ func (s *LoanService) List(ctx context.Context) ([]models.Loan, error) {
 	return result, nil
 }
 
-func (s *LoanService) Get(ctx context.Context, loanId string) (*models.Loan, error) {
-	loan, err := s.loanDAO.Get(ctx, loanId)
+func (s *LoanServiceImpl) Get(ctx context.Context, loanId string) (*models.Loan, error) {
+	loan, err := s.loan.Get(ctx, loanId)
 	if err != nil {
 		return nil, err
 	}
 	return s.toModel(loan), nil
 }
 
-func (s *LoanService) toModel(loan *schema.Loan) *models.Loan {
+func (s *LoanServiceImpl) toModel(loan *schema.Loan) *models.Loan {
 	if loan == nil {
 		return nil
 	}
 	return &models.Loan{
 		Id:        loan.Id,
 		Amount:    loan.Amount,
-		Disbursed: loan.Disbursement,
 		CreatedAt: loan.CreatedAt,
 		UpdatedAt: loan.UpdatedAt,
 	}

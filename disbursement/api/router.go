@@ -30,5 +30,11 @@ func (d *DisbursementServer) routes() http.Handler {
 	disbursementSubRoute.HandleFunc("/{id}", disbursementHandler.Fetch).Methods(http.MethodGet)
 	disbursementSubRoute.HandleFunc("/{id}", disbursementHandler.Retry).Methods(http.MethodPost)
 
+	paymentService := d.serviceFactory.GetPaymentService()
+	paymentHandler := handlers.NewPaymentHandler(paymentService)
+
+	paymentSubRoute := subRoute.PathPrefix("/payment").Subrouter()
+	paymentSubRoute.HandleFunc("/notify", paymentHandler.ProcessPayment).Methods(http.MethodPost)
+
 	return router
 }

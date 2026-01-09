@@ -8,10 +8,10 @@ type ReconciliationRequest struct {
 }
 
 type ReconciliationTransaction struct {
-	ReferenceID string    `json:"reference_id" `
-	Amount      float64   `json:"amount"       `
-	Date        time.Time `json:"date"         `
-	Status      string    `json:"status"       `
+	ReferenceID string            `json:"reference_id"`
+	Amount      float64           `json:"amount"`
+	Date        time.Time         `json:"date"`
+	Status      TransactionStatus `json:"status"`
 }
 
 type Discrepancy struct {

@@ -200,34 +200,64 @@ We use a tiered approach based on amount and retry count:
 
 ## 7. Background Worker Design
 
-### Decision: Single-threaded Polling Worker with Time-based Scheduling
+### Decision: Multi-Worker Architecture with Channel-Specific Processing
 
 **Architecture:**
-- Single goroutine worker that polls database at fixed intervals
+- Three separate goroutine workers, each optimized for different use cases
 - No job queue - direct database queries for pending disbursements
 - Synchronous batch processing within each polling cycle
+- Channel-based separation allows different polling intervals and batch sizes
 
-**Configuration:**
-- **Poll interval**: 5 seconds (configurable via `pollInterval`)
-- **Batch size**: 10 disbursements per batch (configurable via `batchSize`)
-- **Status filter**: Processes disbursements with status "initiated" or "suspended"
+**Worker Types:**
 
-**Processing flow:**
-1. **Polling loop**: Worker wakes up every 5 seconds via ticker
-2. **Batch processing loop** (within each polling cycle):
-   - Start with offset = 0
-   - Fetch batch of disbursements with status IN ('initiated', 'suspended')
-     - Ordered by `created_at DESC` (newest first)
-     - Limited by batch size (10)
-   - Process each disbursement in batch:
-     - Calls `PaymentService.Process()` synchronously
-     - Errors logged but don't stop batch processing
-   - If batch is full (len == batchSize): increment offset, fetch next batch
-   - If batch is partial (len < batchSize): all eligible disbursements processed, exit loop
-3. **Cycle completion**: Worker sleeps until next ticker interval
+#### 1. Payment Worker (`StartPaymentDisbursement`)
+- **Trigger**: Channel-based, event-driven via `paymentChan`
+- **Purpose**: Process individual disbursements on-demand
+- **Processing**: 
+  - Listens on `paymentChan` for disbursement IDs
+  - Fetches disbursement by ID
+  - Skips NEFT transactions (handled by NEFT worker)
+  - Calls `PaymentService.Process()` synchronously
+- **Use Cases**: 
+  - Immediate processing when disbursement is created via API
+  - Manual retry via API
+- **Advantages**: Low latency for immediate processing needs
 
-**State management:**
-- Offset counter resets to 0 at start of each polling cycle
+#### 2. Retry Worker (`StartRetryDisbursement`)
+- **Trigger**: Time-based polling via ticker
+- **Poll Interval**: 5 seconds (configurable via `retryPollInterval`)
+- **Batch Size**: Configurable via `retryBatchSize`
+- **Status Filter**: `SUSPENDED` only
+- **Channel Filter**: `UPI` and `IMPS` only (NEFT handled separately)
+- **Processing Flow**:
+  1. **Polling loop**: Worker wakes up every 5 seconds via ticker
+  2. **Batch processing loop** (within each polling cycle):
+     - Start with offset = 0
+     - Fetch batch of suspended UPI/IMPS disbursements
+     - Process each disbursement:
+       - Eligibility checked by `shouldProcess()` (retry backoff time must have elapsed)
+       - Calls `PaymentService.Process()` synchronously
+       - Errors logged but don't stop batch processing
+     - If batch is full (len == retryBatchSize): increment offset, fetch next batch
+     - If batch is partial (len < retryBatchSize): all eligible disbursements processed, exit loop
+  3. **Cycle completion**: Worker sleeps until next ticker interval
+- **Purpose**: Automatically retry suspended UPI/IMPS transactions with exponential backoff
+
+#### 3. NEFT Worker (`StartNEFTDisbursement`)
+- **Trigger**: Time-based polling via ticker
+- **Poll Interval**: 30 seconds (configurable via `neftPollInterval`)
+- **Batch Size**: Configurable via `neftBatchSize`
+- **Status Filter**: `INITIATED` or `SUSPENDED`
+- **Channel Filter**: `NEFT` only
+- **Processing Flow**: Same as Retry Worker but with different filters and interval
+- **Purpose**: Handle NEFT transactions separately due to:
+  - Slower processing requirements
+  - Batch-oriented nature
+  - Different SLA expectations
+  - Reduced polling frequency to minimize load
+
+**State Management:**
+- Offset counter resets to 0 at start of each polling cycle (for Retry and NEFT workers)
 - Within a cycle, processes all eligible disbursements in batches until none remain
 - Each disbursement's eligibility checked by `shouldProcess()`:
   - `initiated`: Always eligible
@@ -236,23 +266,28 @@ We use a tiered approach based on amount and retry count:
   - `success`: Not eligible
   - `failed`: Not eligible
 
-**Graceful shutdown:**
+**Graceful Shutdown:**
 - Supports two shutdown mechanisms:
-  1. **Context cancellation**: Worker stops when parent context is cancelled
-  2. **Stop channel**: External `Stop()` call closes stop channel
-- Both mechanisms allow in-flight batch to complete before shutdown
+  1. **Context cancellation**: Workers stop when parent context is cancelled
+  2. **Stop channel**: External `Stop()` call closes `stopChan`, all workers stop
+- Both mechanisms allow in-flight batches to complete before shutdown
+- All three workers share the same `stopChan` for coordinated shutdown
 
-**Error handling:**
+**Error Handling:**
 - Database query errors: Logged and return (skip this polling cycle)
 - Individual disbursement processing errors: Logged but continue with next disbursement
-- Worker continues running despite individual failures
+- Workers continue running despite individual failures
+- Payment worker errors don't affect retry/NEFT workers
 
 **Advantages:**
 - Simple implementation, no queue infrastructure needed
 - Automatic retry via polling (suspended disbursements retried when eligible)
 - Stateless design (no in-memory job state)
+- Channel-specific optimization (different intervals for different channels)
+- Separation of concerns (immediate vs. retry vs. NEFT processing)
 
 **Limitations:**
-- Fixed polling interval (not event-driven)
+- Fixed polling intervals (not event-driven for Retry/NEFT workers)
 - Synchronous processing (one disbursement at a time within batch)
 - No priority queue (processed by creation date, newest first)
+- Payment worker requires external trigger (channel send)

@@ -6,21 +6,18 @@ import (
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
 )
 
 type Database struct {
 	db           *gorm.DB
-	loan         *daos.LoanDAO
-	beneficiary  *daos.BeneficiaryDAO
-	disbursement *daos.DisbursementDAO
-	transaction  *daos.TransactionDAO
+	loan         daos.LoanRepository
+	beneficiary  daos.BeneficiaryRepository
+	disbursement daos.DisbursementRepository
+	transaction  daos.TransactionRepository
 }
 
 func New(dsn string) (*Database, error) {
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
-	})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
@@ -35,34 +32,28 @@ func New(dsn string) (*Database, error) {
 	}
 
 	return &Database{
-		db: db,
+		db:           db,
+		loan:         daos.NewLoanRepository(db),
+		beneficiary:  daos.NewBeneficiaryRepository(db),
+		disbursement: daos.NewDisbursementRepository(db),
+		transaction:  daos.NewTransactionRepository(db),
 	}, nil
 }
-
-func (d *Database) GetLoanDAO() *daos.LoanDAO {
-	if d.loan == nil {
-		d.loan = daos.NewLoanDAO(d.db)
-	}
+func (d *Database) GetDB() *gorm.DB {
+	return d.db
+}
+func (d *Database) GetLoanRepository() daos.LoanRepository {
 	return d.loan
 }
 
-func (d *Database) GetBeneficiaryDAO() *daos.BeneficiaryDAO {
-	if d.beneficiary == nil {
-		d.beneficiary = daos.NewBeneficiaryDAO(d.db)
-	}
+func (d *Database) GetBeneficiaryRepository() daos.BeneficiaryRepository {
 	return d.beneficiary
 }
 
-func (d *Database) GetDisbursementDAO() *daos.DisbursementDAO {
-	if d.disbursement == nil {
-		d.disbursement = daos.NewDisbursementDAO(d.db)
-	}
+func (d *Database) GetDisbursementRepository() daos.DisbursementRepository {
 	return d.disbursement
 }
 
-func (d *Database) GetTransactionDAO() *daos.TransactionDAO {
-	if d.transaction == nil {
-		d.transaction = daos.NewTransactionDAO(d.db)
-	}
+func (d *Database) GetTransactionRepository() daos.TransactionRepository {
 	return d.transaction
 }

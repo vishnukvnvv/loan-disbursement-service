@@ -12,13 +12,11 @@ import (
 
 type DisbursementHandler struct {
 	BaseHandler
-	service *services.DisbursementService
+	service services.DisbursementService
 }
 
-func NewDisbursementHandler(service *services.DisbursementService) *DisbursementHandler {
-	return &DisbursementHandler{
-		service: service,
-	}
+func NewDisbursementHandler(service services.DisbursementService) *DisbursementHandler {
+	return &DisbursementHandler{service: service}
 }
 
 func (d DisbursementHandler) Disburse(w http.ResponseWriter, r *http.Request) {

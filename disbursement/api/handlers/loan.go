@@ -13,13 +13,11 @@ import (
 
 type LoanHandler struct {
 	BaseHandler
-	service *services.LoanService
+	service services.LoanService
 }
 
-func NewLoanHandler(service *services.LoanService) *LoanHandler {
-	return &LoanHandler{
-		service: service,
-	}
+func NewLoanHandler(service services.LoanService) *LoanHandler {
+	return &LoanHandler{service: service}
 }
 
 func (l LoanHandler) Create(w http.ResponseWriter, r *http.Request) {

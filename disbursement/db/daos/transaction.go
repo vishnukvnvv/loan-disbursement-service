@@ -3,45 +3,44 @@ package daos
 import (
 	"context"
 	"loan-disbursement-service/db/schema"
+	"loan-disbursement-service/models"
 	"time"
 
 	"gorm.io/gorm"
 )
 
+type TransactionRepository interface {
+	Create(
+		ctx context.Context,
+		transaction schema.Transaction,
+	) (*schema.Transaction, error)
+	Update(ctx context.Context, id string, fields map[string]any) error
+	Get(ctx context.Context, id string) (*schema.Transaction, error)
+	GetByReferenceID(ctx context.Context, referenceID string) (*schema.Transaction, error)
+	ListByDisbursement(ctx context.Context, disbursementId string) ([]schema.Transaction, error)
+	ListByDate(
+		ctx context.Context,
+		date time.Time,
+		status []models.TransactionStatus,
+	) ([]schema.Transaction, error)
+}
+
 type TransactionDAO struct {
 	db *gorm.DB
 }
 
-func NewTransactionDAO(db *gorm.DB) *TransactionDAO {
-	return &TransactionDAO{
-		db: db,
-	}
+func NewTransactionRepository(db *gorm.DB) TransactionRepository {
+	return &TransactionDAO{db: db}
 }
 
 func (t TransactionDAO) Create(
 	ctx context.Context,
-	id string,
-	disbursementId string,
-	referenceId string,
-	mode string,
-	amount float64,
-	status string,
-	message *string,
+	transaction schema.Transaction,
 ) (*schema.Transaction, error) {
-	tx := &schema.Transaction{
-		Id:             id,
-		DisbursementId: disbursementId,
-		ReferenceId:    referenceId,
-		Amount:         amount,
-		Mode:           mode,
-		Status:         status,
-		Message:        message,
-	}
-
-	if err := t.db.WithContext(ctx).Model(&schema.Transaction{}).Create(tx).Error; err != nil {
+	if err := t.db.WithContext(ctx).Model(&schema.Transaction{}).Create(&transaction).Error; err != nil {
 		return nil, err
 	}
-	return tx, nil
+	return &transaction, nil
 }
 
 func (t TransactionDAO) Update(ctx context.Context, id string, fields map[string]any) error {
@@ -73,10 +72,23 @@ func (t TransactionDAO) ListByDisbursement(
 	return txs, nil
 }
 
+func (t TransactionDAO) GetByReferenceID(
+	ctx context.Context,
+	referenceID string,
+) (*schema.Transaction, error) {
+	var tx schema.Transaction
+	if err := t.db.WithContext(ctx).Model(&schema.Transaction{}).
+		Where("reference_id = ?", referenceID).
+		First(&tx).Error; err != nil {
+		return nil, err
+	}
+	return &tx, nil
+}
+
 func (t TransactionDAO) ListByDate(
 	ctx context.Context,
 	date time.Time,
-	status []string,
+	status []models.TransactionStatus,
 ) ([]schema.Transaction, error) {
 	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 	endOfDay := startOfDay.Add(24 * time.Hour)

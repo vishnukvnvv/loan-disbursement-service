@@ -12,6 +12,7 @@ import (
 	"loan-disbursement-service/db"
 	httpclient "loan-disbursement-service/http"
 	"loan-disbursement-service/providers"
+	"loan-disbursement-service/utils"
 	"loan-disbursement-service/worker"
 
 	"github.com/rs/zerolog/log"
@@ -31,6 +32,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	idGenerator := utils.NewIdGenerator()
+
 	paymentProvider, err := providers.NewPaymentProvider(
 		os.Getenv("PAYMENT_PROVIDER_URL"),
 		httpclient.NewHTTPClient(),
@@ -38,14 +41,17 @@ func main() {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to create payment provider")
 	}
+	notificationURL := os.Getenv("NOTIFICATION_URL")
 
-	serviceFactory := services.New(database, paymentProvider)
+	serviceFactory := services.New(database, idGenerator, paymentProvider, notificationURL)
 
 	worker := worker.NewWorker(
-		database.GetDisbursementDAO(),
+		database.GetDisbursementRepository(),
 		serviceFactory.GetPaymentService(),
 	)
-	go worker.Start(ctx)
+	go worker.StartPaymentDisbursement(ctx)
+	go worker.StartRetryDisbursement(ctx)
+	go worker.StartNEFTDisbursement(ctx)
 
 	server := api.New("7070", serviceFactory)
 

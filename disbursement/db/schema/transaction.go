@@ -1,6 +1,9 @@
 package schema
 
-import "time"
+import (
+	"loan-disbursement-service/models"
+	"time"
+)
 
 type Transaction struct {
 	Id             string       `gorm:"primaryKey"`
@@ -8,8 +11,8 @@ type Transaction struct {
 	Disbursement   Disbursement `gorm:"foreignKey:DisbursementId;references:Id"`
 	ReferenceId    string       `gorm:"uniqueIndex"`
 	Amount         float64
-	Mode           string
-	Status         string
+	Channel        models.PaymentChannel
+	Status         models.TransactionStatus
 	Message        *string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time

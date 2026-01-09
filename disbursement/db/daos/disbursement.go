@@ -3,29 +3,51 @@ package daos
 import (
 	"context"
 	"loan-disbursement-service/db/schema"
+	"loan-disbursement-service/models"
 
 	"gorm.io/gorm"
 )
 
+type DisbursementRepository interface {
+	Create(
+		ctx context.Context,
+		id, loanId string,
+		channel models.PaymentChannel,
+		status models.DisbursementStatus,
+		amount float64,
+	) (*schema.Disbursement, error)
+	Update(ctx context.Context, id string, fields map[string]any) error
+	Get(ctx context.Context, id string) (*schema.Disbursement, error)
+	List(
+		ctx context.Context,
+		offset, limit int,
+		status []models.DisbursementStatus,
+		channels []models.PaymentChannel,
+	) ([]schema.Disbursement, error)
+	ListByLoan(
+		ctx context.Context,
+		loanId string,
+	) ([]schema.Disbursement, error)
+}
 type DisbursementDAO struct {
 	db *gorm.DB
 }
 
-func NewDisbursementDAO(db *gorm.DB) *DisbursementDAO {
-	return &DisbursementDAO{
-		db: db,
-	}
+func NewDisbursementRepository(db *gorm.DB) DisbursementRepository {
+	return &DisbursementDAO{db: db}
 }
 
 func (d DisbursementDAO) Create(
 	ctx context.Context,
-	id string,
-	loanId, status string,
+	id, loanId string,
+	channel models.PaymentChannel,
+	status models.DisbursementStatus,
 	amount float64,
 ) (*schema.Disbursement, error) {
 	disbursement := &schema.Disbursement{
 		Id:         id,
 		LoanId:     loanId,
+		Channel:    channel,
 		Amount:     amount,
 		Status:     status,
 		RetryCount: 0,
@@ -55,13 +77,18 @@ func (d DisbursementDAO) Get(ctx context.Context, id string) (*schema.Disburseme
 func (d DisbursementDAO) List(
 	ctx context.Context,
 	offset, limit int,
-	status []string,
+	status []models.DisbursementStatus,
+	channels []models.PaymentChannel,
 ) ([]schema.Disbursement, error) {
 	var disbursements []schema.Disbursement
 	query := d.db.WithContext(ctx).Model(&schema.Disbursement{})
 
 	if len(status) > 0 {
 		query = query.Where("status IN ?", status)
+	}
+
+	if len(channels) > 0 {
+		query = query.Where("channel IN ?", channels)
 	}
 
 	if err := query.

@@ -8,6 +8,7 @@ type TransactionStatus string
 const (
 	TransactionStatusInitiated TransactionStatus = "initiated"
 	TransactionStatusSuccess   TransactionStatus = "success"
+	TransactionStatusCompleted TransactionStatus = "completed"
 	TransactionStatusFailed    TransactionStatus = "failed"
 )
 
@@ -29,17 +30,17 @@ type DisburseRequest struct {
 }
 
 type TransactionResponse struct {
-	TransactionId string    `json:"transaction_id"`
-	Status        string    `json:"status"`
-	Mode          string    `json:"mode"`
-	Message       *string   `json:"message"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	TransactionId string            `json:"transaction_id"`
+	Status        TransactionStatus `json:"status"`
+	Channel       PaymentChannel    `json:"channel"`
+	Message       *string           `json:"message"`
+	CreatedAt     time.Time         `json:"created_at"`
+	UpdatedAt     time.Time         `json:"updated_at"`
 }
 
 type Disbursement struct {
 	DisbursementId string                `json:"disbursement_id"`
-	Status         string                `json:"status"`
+	Status         DisbursementStatus    `json:"status"`
 	LoanId         string                `json:"loan_id"`
 	Amount         float64               `json:"amount"`
 	Transaction    []TransactionResponse `json:"transaction"`
@@ -48,7 +49,7 @@ type Disbursement struct {
 }
 
 type DisbursementResponse struct {
-	DisbursementId string `json:"disbursement_id"`
-	Status         string `json:"status"`
-	Message        string `json:"message"`
+	DisbursementId string             `json:"disbursement_id"`
+	Status         DisbursementStatus `json:"status"`
+	Message        string             `json:"message"`
 }
