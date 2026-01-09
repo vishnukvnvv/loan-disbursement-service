@@ -10,6 +10,7 @@ import (
 	"loan-disbursement-service/models"
 	"loan-disbursement-service/providers"
 	"loan-disbursement-service/utils"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -74,6 +75,7 @@ func (p PaymentServiceImpl) Process(
 	disbursement *schema.Disbursement,
 ) error {
 	if !p.shouldProcess(disbursement) {
+		log.Info().Msgf("disbursement %v is not eligible for processing", disbursement.Id)
 		return nil
 	}
 
@@ -228,6 +230,7 @@ func (p PaymentServiceImpl) evaluateFailure(
 	retryCount int,
 	err error,
 ) (models.DisbursementStatus, int) {
+	log.Info().Msgf("evaluating failure: %v", err)
 	if retryCount >= MaxRetries {
 		return models.DisbursementStatusFailed, retryCount
 	}
@@ -235,11 +238,12 @@ func (p PaymentServiceImpl) evaluateFailure(
 	newRetryCount := retryCount + 1
 
 	for _, retriableErr := range models.TRANSIANT_FAILURES {
-		if errors.Is(err, retriableErr) {
+		if strings.Contains(err.Error(), retriableErr.Error()) {
 			return models.DisbursementStatusSuspended, newRetryCount
 		}
 	}
 
+	log.Info().Msgf("error is not transient, returning failed")
 	return models.DisbursementStatusFailed, newRetryCount
 }
 
@@ -311,6 +315,9 @@ func (p PaymentServiceImpl) switchChannel(
 	if disbursement.RetryCount == 2 && loan.Amount <= 100000 {
 		return models.PaymentChannelIMPS
 	}
+	if loan.Amount <= 500000 {
+		return models.PaymentChannelIMPS
+	}
 	return models.PaymentChannelNEFT
 }
 
@@ -335,7 +342,7 @@ func (p PaymentServiceImpl) channelFallback(
 	if channel == models.PaymentChannelUPI {
 		return models.PaymentChannelIMPS, nil
 	}
-	return "", errors.New("no active channel found")
+	return channel, nil
 }
 
 func (p PaymentServiceImpl) transfer(

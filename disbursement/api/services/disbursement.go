@@ -50,12 +50,12 @@ func (d *DisbursementServiceImpl) Disburse(
 	ctx context.Context,
 	req *models.DisburseRequest,
 ) (*models.DisbursementResponse, error) {
-	existing, err := d.disbursement.Get(ctx, req.LoanId)
+	existing, err := d.disbursement.GetByLoanId(ctx, req.LoanId)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		log.Error().Err(err).Str("loan_id", req.LoanId).Msg("failed to check existing disbursement")
 		return nil, fmt.Errorf("failed to check existing disbursement: %w", err)
 	}
-
+	log.Info().Msgf("existing disbursement: %+v", existing)
 	if existing != nil {
 		return &models.DisbursementResponse{
 			DisbursementId: existing.Id,

@@ -124,6 +124,7 @@ func (w *Worker) markTransactionAsFailed(ctx context.Context, transactionID, mes
 	if err != nil {
 		log.Error().Err(err).Msg("failed to update transaction status")
 	}
+	w.notifier <- transactionID
 }
 
 func (w *Worker) getFailureReason() string {

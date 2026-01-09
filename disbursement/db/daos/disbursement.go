@@ -18,6 +18,7 @@ type DisbursementRepository interface {
 	) (*schema.Disbursement, error)
 	Update(ctx context.Context, id string, fields map[string]any) error
 	Get(ctx context.Context, id string) (*schema.Disbursement, error)
+	GetByLoanId(ctx context.Context, loanId string) (*schema.Disbursement, error)
 	List(
 		ctx context.Context,
 		offset, limit int,
@@ -74,6 +75,16 @@ func (d DisbursementDAO) Get(ctx context.Context, id string) (*schema.Disburseme
 	return &disbursement, nil
 }
 
+func (d DisbursementDAO) GetByLoanId(
+	ctx context.Context,
+	loanId string,
+) (*schema.Disbursement, error) {
+	var disbursement schema.Disbursement
+	if err := d.db.WithContext(ctx).Where("loan_id = ?", loanId).First(&disbursement).Error; err != nil {
+		return nil, err
+	}
+	return &disbursement, nil
+}
 func (d DisbursementDAO) List(
 	ctx context.Context,
 	offset, limit int,

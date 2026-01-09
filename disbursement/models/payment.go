@@ -26,6 +26,7 @@ var (
 	REFERENCE_ID_ALREADY_PROCESSED = errors.New("Reference ID already processed")
 	INVALID_IFSC                   = errors.New("Invalid IFSC code")
 	INACTIVE_ACCOUNT               = errors.New("Inactive Beneficiary Account")
+	INSUFFICIENT_BALANCE           = errors.New("Insufficient Balance")
 )
 
 var TRANSIANT_FAILURES = []error{
@@ -35,6 +36,7 @@ var TRANSIANT_FAILURES = []error{
 	SERVICE_UNAVAILABLE,
 	LIMIT_EXCEEDED,
 	BENEFICIARY_BANK_DOWN,
+	INSUFFICIENT_BALANCE,
 }
 
 var PERMANENT_FAILURES = []error{

@@ -47,6 +47,14 @@ func (m *MockDisbursementRepository) Get(
 	return args.Get(0).(*schema.Disbursement), args.Error(1)
 }
 
+func (m *MockDisbursementRepository) GetByLoanId(
+	ctx context.Context,
+	loanId string,
+) (*schema.Disbursement, error) {
+	args := m.Called(ctx, loanId)
+	return args.Get(0).(*schema.Disbursement), args.Error(1)
+}
+
 func (m *MockDisbursementRepository) List(
 	ctx context.Context,
 	offset, limit int,
