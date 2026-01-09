@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (w Worker) ProcessRetryBatch(ctx context.Context) {
+func (w *Worker) ProcessRetryBatch(ctx context.Context) {
 	status := []models.DisbursementStatus{
 		models.DisbursementStatusSuspended,
 	}

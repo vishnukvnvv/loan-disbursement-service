@@ -26,7 +26,7 @@ type PaymentService interface {
 		channel models.PaymentChannel,
 		err error,
 	) error
-	HanleSuccess(
+	HandleSuccess(
 		ctx context.Context,
 		disbursementId, transactionId string,
 		channel models.PaymentChannel,
@@ -151,7 +151,7 @@ func (p PaymentServiceImpl) HandleNotification(
 		return fmt.Errorf("failed to get disbursement: %w", err)
 	}
 	if notification.Status == models.TransactionStatusSuccess {
-		return p.HanleSuccess(ctx, disbursement.Id, transaction.Id, notification.Channel)
+		return p.HandleSuccess(ctx, disbursement.Id, transaction.Id, notification.Channel)
 	}
 	return p.HandleFailure(
 		ctx,
@@ -203,7 +203,7 @@ func (p PaymentServiceImpl) HandleFailure(
 	})
 }
 
-func (p PaymentServiceImpl) HanleSuccess(
+func (p PaymentServiceImpl) HandleSuccess(
 	ctx context.Context,
 	disbursementId, transactionId string,
 	channel models.PaymentChannel,

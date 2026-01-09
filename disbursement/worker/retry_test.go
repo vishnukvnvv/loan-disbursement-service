@@ -40,7 +40,7 @@ func (m *MockPaymentService) HandleFailure(
 	return args.Error(0)
 }
 
-func (m *MockPaymentService) HanleSuccess(
+func (m *MockPaymentService) HandleSuccess(
 	ctx context.Context,
 	disbursementId, transactionId string,
 	channel models.PaymentChannel,

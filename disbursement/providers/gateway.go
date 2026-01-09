@@ -41,10 +41,14 @@ func (g GatewayProvider) Transfer(
 		log.Error().Err(err).Msg("gateway error")
 		return models.PaymentResponse{}, models.NETWORK_ERROR
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		var errBody map[string]any
-		_ = json.NewDecoder(resp.Body).Decode(&errBody)
+		if err := json.NewDecoder(resp.Body).Decode(&errBody); err != nil {
+			log.Error().Err(err).Msg("failed to decode error response")
+			return models.PaymentResponse{}, fmt.Errorf("gateway error: status=%d", resp.StatusCode)
+		}
 		if errorMessage, ok := errBody["error"].(string); ok {
 			return models.PaymentResponse{}, errors.New(errorMessage)
 		}
@@ -54,7 +58,6 @@ func (g GatewayProvider) Transfer(
 			errBody,
 		)
 	}
-	defer resp.Body.Close()
 
 	var result models.PaymentResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -88,7 +91,10 @@ func (g GatewayProvider) Fetch(
 	}
 	if resp.StatusCode != http.StatusOK {
 		var errBody map[string]any
-		_ = json.NewDecoder(resp.Body).Decode(&errBody)
+		if err := json.NewDecoder(resp.Body).Decode(&errBody); err != nil {
+			log.Error().Err(err).Msg("failed to decode error response")
+			return models.PaymentResponse{}, fmt.Errorf("gateway error: status=%d", resp.StatusCode)
+		}
 		if errorMessage, ok := errBody["error"].(string); ok {
 			return models.PaymentResponse{}, errors.New(errorMessage)
 		}

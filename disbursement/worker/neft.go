@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (w Worker) ProcessNEFTBatch(ctx context.Context) {
+func (w *Worker) ProcessNEFTBatch(ctx context.Context) {
 	status := []models.DisbursementStatus{
 		models.DisbursementStatusInitiated,
 		models.DisbursementStatusSuspended,

@@ -42,7 +42,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create payment provider")
 	}
 	notificationURL := os.Getenv("NOTIFICATION_URL")
-	paymentChan := make(chan string)
+	paymentChan := make(chan string, 100) // Buffered to prevent blocking
 
 	serviceFactory := services.New(
 		database,

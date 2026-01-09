@@ -4,6 +4,7 @@ import (
 	"context"
 	"loan-disbursement-service/api/services"
 	"loan-disbursement-service/db/daos"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -18,6 +19,7 @@ type Worker struct {
 	retryPollInterval time.Duration
 	paymentChan       chan string
 	stopChan          chan struct{}
+	stopOnce          sync.Once
 }
 
 func NewWorker(
@@ -34,10 +36,11 @@ func NewWorker(
 		paymentService:    paymentService,
 		retryBatchSize:    10,
 		neftBatchSize:     10,
+		stopOnce:          sync.Once{},
 	}
 }
 
-func (w Worker) StartPaymentDisbursement(ctx context.Context) {
+func (w *Worker) StartPaymentDisbursement(ctx context.Context) {
 	log.Info().Msg("Starting payment disbursement worker")
 	for {
 		select {
@@ -55,7 +58,7 @@ func (w Worker) StartPaymentDisbursement(ctx context.Context) {
 	}
 }
 
-func (w Worker) StartRetryDisbursement(ctx context.Context) {
+func (w *Worker) StartRetryDisbursement(ctx context.Context) {
 	log.Info().Msg("Starting retry disbursement worker")
 	ticker := time.NewTicker(w.retryPollInterval)
 	defer ticker.Stop()
@@ -76,7 +79,7 @@ func (w Worker) StartRetryDisbursement(ctx context.Context) {
 	}
 }
 
-func (w Worker) StartNEFTDisbursement(ctx context.Context) {
+func (w *Worker) StartNEFTDisbursement(ctx context.Context) {
 	log.Info().Msg("Starting neft disbursement worker")
 
 	ticker := time.NewTicker(w.neftPollInterval)
@@ -98,7 +101,9 @@ func (w Worker) StartNEFTDisbursement(ctx context.Context) {
 	}
 }
 
-func (w Worker) Stop(ctx context.Context) {
-	close(w.stopChan)
+func (w *Worker) Stop(ctx context.Context) {
+	w.stopOnce.Do(func() {
+		close(w.stopChan)
+	})
 	log.Info().Msg("Stopping disbursement worker")
 }

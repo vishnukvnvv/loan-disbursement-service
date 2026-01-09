@@ -2,6 +2,7 @@ package api
 
 import (
 	"loan-disbursement-service/api/handlers"
+	"loan-disbursement-service/api/middlewares"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -9,6 +10,8 @@ import (
 
 func (d *DisbursementServer) routes() http.Handler {
 	router := mux.NewRouter()
+
+	router.Use(middlewares.CorrelationIDMiddleware)
 
 	loanService := d.serviceFactory.GetLoanService()
 	loanHandler := handlers.NewLoanHandler(loanService)

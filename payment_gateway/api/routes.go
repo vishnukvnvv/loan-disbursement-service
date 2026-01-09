@@ -3,12 +3,15 @@ package api
 import (
 	"net/http"
 	"payment-gateway/api/handler"
+	"payment-gateway/api/middlewares"
 
 	"github.com/gorilla/mux"
 )
 
 func (g *GatewayServer) routes() http.Handler {
 	router := mux.NewRouter()
+
+	router.Use(middlewares.CorrelationIDMiddleware)
 
 	subRoute := router.PathPrefix("/api/v1").Subrouter()
 

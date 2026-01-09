@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (w Worker) ProcessPaymentBatch(ctx context.Context, disbursmentId string) {
+func (w *Worker) ProcessPaymentBatch(ctx context.Context, disbursmentId string) {
 	disbursement, err := w.disbursement.Get(
 		ctx,
 		disbursmentId,

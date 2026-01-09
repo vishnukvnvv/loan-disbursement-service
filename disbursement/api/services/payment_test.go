@@ -1232,7 +1232,7 @@ func TestPaymentService_HandleFailure(t *testing.T) {
 	})
 }
 
-func TestPaymentService_HanleSuccess(t *testing.T) {
+func TestPaymentService_HandleSuccess(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("successfully handles success", func(t *testing.T) {
@@ -1273,7 +1273,7 @@ func TestPaymentService_HanleSuccess(t *testing.T) {
 			Return(nil).
 			Once()
 
-		err := service.HanleSuccess(ctx, disbursementId, transactionId, channel)
+		err := service.HandleSuccess(ctx, disbursementId, transactionId, channel)
 
 		assert.NoError(t, err)
 		mockTransaction.AssertExpectations(t)
@@ -1310,7 +1310,7 @@ func TestPaymentService_HanleSuccess(t *testing.T) {
 			Return(errors.New("update failed")).
 			Once()
 
-		err := service.HanleSuccess(ctx, disbursementId, transactionId, channel)
+		err := service.HandleSuccess(ctx, disbursementId, transactionId, channel)
 
 		assert.Error(t, err)
 		mockDisbursement.AssertNotCalled(t, "Update")
@@ -1347,7 +1347,7 @@ func TestPaymentService_HanleSuccess(t *testing.T) {
 			Return(errors.New("update failed")).
 			Once()
 
-		err := service.HanleSuccess(ctx, disbursementId, transactionId, channel)
+		err := service.HandleSuccess(ctx, disbursementId, transactionId, channel)
 
 		assert.Error(t, err)
 		mockTransaction.AssertExpectations(t)
