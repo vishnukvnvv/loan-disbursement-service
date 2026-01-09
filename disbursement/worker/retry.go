@@ -24,7 +24,7 @@ func (w Worker) ProcessRetryBatch(ctx context.Context) {
 			status,
 			channels,
 		)
-		log.Info().Msgf("disbursements worker: %v", len(disbursements))
+		log.Info().Msgf("Retry disbursements worker: %v", len(disbursements))
 		if err != nil {
 			log.Error().Err(err).Msg("failed to list disbursements")
 			return

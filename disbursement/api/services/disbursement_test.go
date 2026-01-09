@@ -24,6 +24,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockDisbursement := new(db_test.MockDisbursementRepository)
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
+		paymentChan := make(chan string, 1)
 
 		service := NewDisbursementService(
 			mockIdGenerator,
@@ -31,6 +32,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -69,7 +71,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockLoan.On("Get", ctx, loanId).
 			Return(loan, nil).Once()
 		mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
-		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.DisbursementStatusInitiated, request.Amount).
+		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelUPI, models.DisbursementStatusInitiated, request.Amount).
 			Return(&disbursement, nil).
 			Once()
 
@@ -80,6 +82,12 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		assert.Equal(t, disbursementId, result.DisbursementId)
 		assert.Equal(t, models.DisbursementStatusInitiated, result.Status)
 		assert.Equal(t, "Disbursement created", result.Message)
+
+		// Drain the payment channel
+		select {
+		case <-paymentChan:
+		default:
+		}
 
 		mockDisbursement.AssertExpectations(t)
 		mockLoan.AssertExpectations(t)
@@ -94,6 +102,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 			mockDisbursement := new(db_test.MockDisbursementRepository)
 			mockTransaction := new(db_test.MockTransactionRepository)
 			mockBeneficiary := new(db_test.MockBeneficiaryRepository)
+			paymentChan := make(chan string, 1)
 
 			service := NewDisbursementService(
 				mockIdGenerator,
@@ -101,6 +110,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 				mockDisbursement,
 				mockTransaction,
 				mockBeneficiary,
+				paymentChan,
 			)
 
 			loanId := "LOAN-123456789012"
@@ -163,7 +173,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 			mockLoan.On("Update", ctx, loanId, map[string]any{"beneficiary_id": beneficiaryId}).
 				Return(updatedLoan, nil).Once()
 			mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
-			mockDisbursement.On("Create", ctx, disbursementId, loanId, models.DisbursementStatusInitiated, request.Amount).
+			mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelUPI, models.DisbursementStatusInitiated, request.Amount).
 				Return(&disbursement, nil).
 				Once()
 
@@ -173,6 +183,12 @@ func TestDisbursementService_Disburse(t *testing.T) {
 			assert.NotNil(t, result)
 			assert.Equal(t, disbursementId, result.DisbursementId)
 			assert.Equal(t, models.DisbursementStatusInitiated, result.Status)
+
+			// Drain the payment channel
+			select {
+			case <-paymentChan:
+			default:
+			}
 
 			mockDisbursement.AssertExpectations(t)
 			mockLoan.AssertExpectations(t)
@@ -188,12 +204,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -236,12 +254,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -273,12 +293,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-NONEXISTENT"
@@ -310,12 +332,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -356,12 +380,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -413,12 +439,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -482,12 +510,14 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		loanId := "LOAN-123456789012"
@@ -514,7 +544,7 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		mockLoan.On("Get", ctx, loanId).
 			Return(loan, nil).Once()
 		mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
-		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.DisbursementStatusInitiated, request.Amount).
+		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelUPI, models.DisbursementStatusInitiated, request.Amount).
 			Return(nil, repoError).
 			Once()
 
@@ -523,6 +553,207 @@ func TestDisbursementService_Disburse(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "failed to create disbursement")
+
+		mockDisbursement.AssertExpectations(t)
+		mockLoan.AssertExpectations(t)
+		mockIdGenerator.AssertExpectations(t)
+	})
+
+	t.Run("selects UPI channel for amount <= 100000", func(t *testing.T) {
+		mockIdGenerator := new(utils_test.MockIdGenerator)
+		mockLoan := new(db_test.MockLoanRepository)
+		mockDisbursement := new(db_test.MockDisbursementRepository)
+		mockTransaction := new(db_test.MockTransactionRepository)
+		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
+		paymentChan := make(chan string, 1)
+
+		service := NewDisbursementService(
+			mockIdGenerator,
+			mockLoan,
+			mockDisbursement,
+			mockTransaction,
+			mockBeneficiary,
+			paymentChan,
+		)
+
+		loanId := "LOAN-123456789012"
+		beneficiaryId := "BEN-987654321098"
+		disbursementId := "DISB-123456789012"
+
+		request := &models.DisburseRequest{
+			LoanId: loanId,
+			Amount: 100000.0, // Exactly 100000
+		}
+
+		loan := &schema.Loan{
+			Id:            loanId,
+			Amount:        request.Amount,
+			BeneficiaryId: &beneficiaryId,
+			CreatedAt:     time.Now().Add(-24 * time.Hour),
+			UpdatedAt:     time.Now().Add(-24 * time.Hour),
+		}
+
+		disbursement := schema.Disbursement{
+			Id:         disbursementId,
+			LoanId:     loanId,
+			Amount:     request.Amount,
+			Status:     models.DisbursementStatusInitiated,
+			RetryCount: 0,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+
+		mockDisbursement.On("Get", ctx, loanId).
+			Return(nil, gorm.ErrRecordNotFound).Once()
+		mockLoan.On("Get", ctx, loanId).
+			Return(loan, nil).Once()
+		mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
+		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelUPI, models.DisbursementStatusInitiated, request.Amount).
+			Return(&disbursement, nil).
+			Once()
+
+		result, err := service.Disburse(ctx, request)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		select {
+		case <-paymentChan:
+		default:
+		}
+
+		mockDisbursement.AssertExpectations(t)
+		mockLoan.AssertExpectations(t)
+		mockIdGenerator.AssertExpectations(t)
+	})
+
+	t.Run("selects IMPS channel for amount > 100000 and <= 500000", func(t *testing.T) {
+		mockIdGenerator := new(utils_test.MockIdGenerator)
+		mockLoan := new(db_test.MockLoanRepository)
+		mockDisbursement := new(db_test.MockDisbursementRepository)
+		mockTransaction := new(db_test.MockTransactionRepository)
+		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
+		paymentChan := make(chan string, 1)
+
+		service := NewDisbursementService(
+			mockIdGenerator,
+			mockLoan,
+			mockDisbursement,
+			mockTransaction,
+			mockBeneficiary,
+			paymentChan,
+		)
+
+		loanId := "LOAN-123456789012"
+		beneficiaryId := "BEN-987654321098"
+		disbursementId := "DISB-123456789012"
+
+		request := &models.DisburseRequest{
+			LoanId: loanId,
+			Amount: 300000.0, // Between 100000 and 500000
+		}
+
+		loan := &schema.Loan{
+			Id:            loanId,
+			Amount:        request.Amount,
+			BeneficiaryId: &beneficiaryId,
+			CreatedAt:     time.Now().Add(-24 * time.Hour),
+			UpdatedAt:     time.Now().Add(-24 * time.Hour),
+		}
+
+		disbursement := schema.Disbursement{
+			Id:         disbursementId,
+			LoanId:     loanId,
+			Amount:     request.Amount,
+			Status:     models.DisbursementStatusInitiated,
+			RetryCount: 0,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+
+		mockDisbursement.On("Get", ctx, loanId).
+			Return(nil, gorm.ErrRecordNotFound).Once()
+		mockLoan.On("Get", ctx, loanId).
+			Return(loan, nil).Once()
+		mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
+		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelIMPS, models.DisbursementStatusInitiated, request.Amount).
+			Return(&disbursement, nil).
+			Once()
+
+		result, err := service.Disburse(ctx, request)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		select {
+		case <-paymentChan:
+		default:
+		}
+
+		mockDisbursement.AssertExpectations(t)
+		mockLoan.AssertExpectations(t)
+		mockIdGenerator.AssertExpectations(t)
+	})
+
+	t.Run("selects NEFT channel for amount > 500000", func(t *testing.T) {
+		mockIdGenerator := new(utils_test.MockIdGenerator)
+		mockLoan := new(db_test.MockLoanRepository)
+		mockDisbursement := new(db_test.MockDisbursementRepository)
+		mockTransaction := new(db_test.MockTransactionRepository)
+		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
+		paymentChan := make(chan string, 1)
+
+		service := NewDisbursementService(
+			mockIdGenerator,
+			mockLoan,
+			mockDisbursement,
+			mockTransaction,
+			mockBeneficiary,
+			paymentChan,
+		)
+
+		loanId := "LOAN-123456789012"
+		beneficiaryId := "BEN-987654321098"
+		disbursementId := "DISB-123456789012"
+
+		request := &models.DisburseRequest{
+			LoanId: loanId,
+			Amount: 600000.0, // Greater than 500000
+		}
+
+		loan := &schema.Loan{
+			Id:            loanId,
+			Amount:        request.Amount,
+			BeneficiaryId: &beneficiaryId,
+			CreatedAt:     time.Now().Add(-24 * time.Hour),
+			UpdatedAt:     time.Now().Add(-24 * time.Hour),
+		}
+
+		disbursement := schema.Disbursement{
+			Id:         disbursementId,
+			LoanId:     loanId,
+			Amount:     request.Amount,
+			Status:     models.DisbursementStatusInitiated,
+			RetryCount: 0,
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+
+		mockDisbursement.On("Get", ctx, loanId).
+			Return(nil, gorm.ErrRecordNotFound).Once()
+		mockLoan.On("Get", ctx, loanId).
+			Return(loan, nil).Once()
+		mockIdGenerator.On("GenerateDisbursementId").Return(disbursementId).Once()
+		mockDisbursement.On("Create", ctx, disbursementId, loanId, models.PaymentChannelNEFT, models.DisbursementStatusInitiated, request.Amount).
+			Return(&disbursement, nil).
+			Once()
+
+		result, err := service.Disburse(ctx, request)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		select {
+		case <-paymentChan:
+		default:
+		}
 
 		mockDisbursement.AssertExpectations(t)
 		mockLoan.AssertExpectations(t)
@@ -540,12 +771,14 @@ func TestDisbursementService_Fetch(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -619,12 +852,14 @@ func TestDisbursementService_Fetch(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -668,12 +903,14 @@ func TestDisbursementService_Fetch(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-NONEXISTENT"
@@ -698,12 +935,14 @@ func TestDisbursementService_Fetch(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -746,12 +985,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -771,7 +1012,8 @@ func TestDisbursementService_Retry(t *testing.T) {
 			Return(&disbursement, nil).Once()
 		mockDisbursement.On("Update", ctx, disbursementId, mock.MatchedBy(func(fields map[string]any) bool {
 			return fields["status"] == string(models.DisbursementStatusInitiated) &&
-				fields["last_error"] == nil
+				fields["last_error"] == nil &&
+				fields["updated_at"] != nil
 		})).
 			Return(nil).
 			Once()
@@ -797,12 +1039,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-NONEXISTENT"
@@ -826,12 +1070,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -866,12 +1112,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -906,12 +1154,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -950,12 +1200,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -973,8 +1225,13 @@ func TestDisbursementService_Retry(t *testing.T) {
 
 		mockDisbursement.On("Get", ctx, disbursementId).
 			Return(&disbursement, nil).Once()
-		mockDisbursement.On("Update", ctx, disbursementId, mock.Anything).
-			Return(nil).Once()
+		mockDisbursement.On("Update", ctx, disbursementId, mock.MatchedBy(func(fields map[string]any) bool {
+			return fields["status"] == string(models.DisbursementStatusInitiated) &&
+				fields["last_error"] == nil &&
+				fields["updated_at"] != nil
+		})).
+			Return(nil).
+			Once()
 
 		result, err := service.Retry(ctx, disbursementId)
 
@@ -991,12 +1248,14 @@ func TestDisbursementService_Retry(t *testing.T) {
 		mockTransaction := new(db_test.MockTransactionRepository)
 		mockBeneficiary := new(db_test.MockBeneficiaryRepository)
 
+		paymentChan := make(chan string, 1)
 		service := NewDisbursementService(
 			mockIdGenerator,
 			mockLoan,
 			mockDisbursement,
 			mockTransaction,
 			mockBeneficiary,
+			paymentChan,
 		)
 
 		disbursementId := "DISB-123456789012"
@@ -1014,8 +1273,13 @@ func TestDisbursementService_Retry(t *testing.T) {
 
 		mockDisbursement.On("Get", ctx, disbursementId).
 			Return(&disbursement, nil).Once()
-		mockDisbursement.On("Update", ctx, disbursementId, mock.Anything).
-			Return(nil).Once()
+		mockDisbursement.On("Update", ctx, disbursementId, mock.MatchedBy(func(fields map[string]any) bool {
+			return fields["status"] == string(models.DisbursementStatusInitiated) &&
+				fields["last_error"] == nil &&
+				fields["updated_at"] != nil
+		})).
+			Return(nil).
+			Once()
 
 		result, err := service.Retry(ctx, disbursementId)
 

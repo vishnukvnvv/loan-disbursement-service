@@ -12,6 +12,7 @@ import (
 	"loan-disbursement-service/utils"
 	"time"
 
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -107,6 +108,8 @@ func (p PaymentServiceImpl) execute(
 	isChannelActive := p.isChannelActive(ctx, channel)
 	if !isChannelActive {
 		activeChannel, err = p.channelFallback(channel, isChannelActive)
+		log.Info().
+			Msgf("Channel %s is not active, falling back to %s", channel, activeChannel)
 		if err != nil {
 			return fmt.Errorf("failed to fallback channel: %w", err)
 		}

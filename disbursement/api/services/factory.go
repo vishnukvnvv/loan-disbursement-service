@@ -20,6 +20,7 @@ func New(
 	idGenerator utils.IdGenerator,
 	paymentProvider providers.PaymentProvider,
 	notificationURL string,
+	paymentChan chan string,
 ) *ServiceFactory {
 	retryPolicy := NewRetryPolicy()
 	return &ServiceFactory{
@@ -31,6 +32,7 @@ func New(
 			database.GetDisbursementRepository(),
 			database.GetTransactionRepository(),
 			database.GetBeneficiaryRepository(),
+			paymentChan,
 		),
 		loanService: NewLoanService(database.GetLoanRepository(), idGenerator),
 		paymentService: NewPaymentService(

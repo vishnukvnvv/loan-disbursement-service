@@ -42,12 +42,20 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to create payment provider")
 	}
 	notificationURL := os.Getenv("NOTIFICATION_URL")
+	paymentChan := make(chan string)
 
-	serviceFactory := services.New(database, idGenerator, paymentProvider, notificationURL)
+	serviceFactory := services.New(
+		database,
+		idGenerator,
+		paymentProvider,
+		notificationURL,
+		paymentChan,
+	)
 
 	worker := worker.NewWorker(
 		database.GetDisbursementRepository(),
 		serviceFactory.GetPaymentService(),
+		paymentChan,
 	)
 	go worker.StartPaymentDisbursement(ctx)
 	go worker.StartRetryDisbursement(ctx)
@@ -61,7 +69,6 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit

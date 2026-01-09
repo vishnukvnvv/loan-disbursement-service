@@ -23,19 +23,22 @@ type Worker struct {
 func NewWorker(
 	disbursement daos.DisbursementRepository,
 	paymentService services.PaymentService,
+	paymentChan chan string,
 ) *Worker {
 	return &Worker{
-		neftPollInterval:  30 * time.Second,
-		retryPollInterval: 5 * time.Second,
-		paymentChan:       make(chan string),
+		neftPollInterval:  60 * time.Second,
+		retryPollInterval: 15 * time.Second,
+		paymentChan:       paymentChan,
 		stopChan:          make(chan struct{}),
 		disbursement:      disbursement,
 		paymentService:    paymentService,
+		retryBatchSize:    10,
+		neftBatchSize:     10,
 	}
 }
 
 func (w Worker) StartPaymentDisbursement(ctx context.Context) {
-	log.Ctx(ctx).Info().Msg("Starting payment disbursement worker")
+	log.Info().Msg("Starting payment disbursement worker")
 	for {
 		select {
 		case <-ctx.Done():
@@ -53,7 +56,7 @@ func (w Worker) StartPaymentDisbursement(ctx context.Context) {
 }
 
 func (w Worker) StartRetryDisbursement(ctx context.Context) {
-	log.Ctx(ctx).Info().Msg("Starting retry disbursement worker")
+	log.Info().Msg("Starting retry disbursement worker")
 	ticker := time.NewTicker(w.retryPollInterval)
 	defer ticker.Stop()
 
@@ -74,7 +77,7 @@ func (w Worker) StartRetryDisbursement(ctx context.Context) {
 }
 
 func (w Worker) StartNEFTDisbursement(ctx context.Context) {
-	log.Ctx(ctx).Info().Msg("Starting neft disbursement worker")
+	log.Info().Msg("Starting neft disbursement worker")
 
 	ticker := time.NewTicker(w.neftPollInterval)
 	defer ticker.Stop()
@@ -97,5 +100,5 @@ func (w Worker) StartNEFTDisbursement(ctx context.Context) {
 
 func (w Worker) Stop(ctx context.Context) {
 	close(w.stopChan)
-	log.Ctx(ctx).Info().Msg("Stopping disbursement worker")
+	log.Info().Msg("Stopping disbursement worker")
 }

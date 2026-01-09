@@ -20,7 +20,7 @@ func (m *MockDisbursementRepository) Create(
 	status models.DisbursementStatus,
 	amount float64,
 ) (*schema.Disbursement, error) {
-	args := m.Called(ctx, id, loanId, status, amount)
+	args := m.Called(ctx, id, loanId, channel, status, amount)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

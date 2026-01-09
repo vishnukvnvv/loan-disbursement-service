@@ -25,6 +25,7 @@ type DisbursementServiceImpl struct {
 	disbursement daos.DisbursementRepository
 	transaction  daos.TransactionRepository
 	beneficiary  daos.BeneficiaryRepository
+	paymentChan  chan string
 }
 
 func NewDisbursementService(
@@ -33,6 +34,7 @@ func NewDisbursementService(
 	disbursement daos.DisbursementRepository,
 	transaction daos.TransactionRepository,
 	beneficiary daos.BeneficiaryRepository,
+	paymentChan chan string,
 ) DisbursementService {
 	return &DisbursementServiceImpl{
 		idGenerator:  idGenerator,
@@ -40,6 +42,7 @@ func NewDisbursementService(
 		disbursement: disbursement,
 		transaction:  transaction,
 		beneficiary:  beneficiary,
+		paymentChan:  paymentChan,
 	}
 }
 
@@ -106,6 +109,7 @@ func (d *DisbursementServiceImpl) Disburse(
 	if err != nil {
 		return nil, fmt.Errorf("failed to create disbursement: %w", err)
 	}
+	d.paymentChan <- disbursementId
 
 	return &models.DisbursementResponse{
 		DisbursementId: disbursementId,
